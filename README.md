@@ -16,8 +16,8 @@ A lightweight, hash-based vector search application that keeps your document ind
 
 ```bash
 # Clone and install
-git clone <repo-url>
-cd leannvault
+git clone https://github.com/tevfik/LeannVault.git
+cd LeannVault
 pip install -e .
 ```
 
