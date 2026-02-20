@@ -45,7 +45,7 @@ def get_searcher(index_path: Path, tracker):
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="leannvault")
+@click.version_option(version="0.2.0", prog_name="leannvault")
 @click.option(
     "--index-path",
     type=click.Path(),
@@ -244,23 +244,35 @@ def delete(ctx, content_hash, file_path):
 @cli.command()
 @click.option("--port", default=8000, help="Server port")
 @click.option("--host", default="127.0.0.1", help="Server host")
+@click.option("--share", is_flag=True, help="Enable Gradio sharing")
 @click.pass_context
-def serve(ctx, port, host):
+def serve(ctx, port, host, share):
     """
     Start the web UI.
 
     Launches FastAPI + Gradio interface for interactive searching.
     """
     from leannvault.web.api import create_app
+    from leannvault.web.ui import create_ui
     import uvicorn
+    import gradio as gr
 
-    app = create_app(
-        index_path=ctx.obj["index_path"],
-        db_path=ctx.obj["db_path"],
-    )
-
-    console.print(f"[bold green]Starting server at http://{host}:{port}[/]")
-    uvicorn.run(app, host=host, port=port)
+    # Create UI and launch it with share option
+    demo = create_ui(ctx.obj["index_path"], ctx.obj["db_path"])
+    
+    if share:
+        console.print("[bold yellow]Gradio sharing enabled...[/]")
+        # Launch independently for sharing
+        demo.launch(server_name=host, server_port=port, share=True)
+    else:
+        # Standard FastAPI mount
+        app = create_app(
+            index_path=ctx.obj["index_path"],
+            db_path=ctx.obj["db_path"],
+        )
+        app = gr.mount_gradio_app(app, demo, path="/")
+        console.print(f"[bold green]Starting server at http://{host}:{port}[/]")
+        uvicorn.run(app, host=host, port=port)
 
 
 @cli.command()
