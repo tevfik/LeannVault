@@ -7,6 +7,7 @@ A lightweight, hash-based vector search application that keeps your document ind
 - **Hash-Based Tracking**: Files are tracked by content hash, not path. Move files freely without breaking the index.
 - **SQLite Metadata Store**: Internal database maps file hashes to current paths.
 - **Semantic Search**: Fast, accurate vector search using LEANN's HNSW backend.
+- **Universal Text Extraction**: Powered by Microsoft's [markitdown](https://github.com/microsoft/markitdown) for broad format support.
 - **CLI Interface**: Full command-line control with `sync`, `index`, `search`, and `delete` commands.
 - **Web UI**: Lightweight FastAPI + Gradio interface for interactive searching.
 - **99% Storage Savings**: LEANN's compression keeps indexes tiny.
@@ -84,10 +85,18 @@ leannvault/
 
 ### Supported File Types
 
-- PDF (`.pdf`)
-- PowerPoint (`.pptx`)
-- Word (`.docx`)
-- JSON (email exports)
+Powered by Microsoft's **markitdown** library for universal text extraction:
+
+| Format | Extensions |
+|--------|-----------|
+| PDF | `.pdf` |
+| Word | `.docx`, `.doc` |
+| PowerPoint | `.pptx`, `.ppt` |
+| Excel | `.xlsx`, `.xls` |
+| HTML | `.html`, `.htm` |
+| Email (Office 365) | `.json` (custom extraction) |
+
+Additional formats may be supported by markitdown. The system gracefully falls back to alternative extraction methods if markitdown is unavailable.
 
 ## Configuration
 

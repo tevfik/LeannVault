@@ -1,16 +1,16 @@
 """
 LEANN-based document indexer with hash tracking.
 
-Extracts text from various file formats and indexes them
-using LEANN's HNSW backend.
+Extracts text from various file formats using markitdown
+and indexes them using LEANN's HNSW backend.
 """
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 from leannvault.core.tracker import FileTracker, FileRecord
+from leannvault.core.extractors import extract_text, SUPPORTED_EXTENSIONS
 
 
 @dataclass
@@ -20,17 +20,17 @@ class IndexedDocument:
     content_hash: str
     text: str
     metadata: dict
-    file_record: FileRecord
+    file_record: Optional[FileRecord]
 
 
 class Indexer:
     """
     Document indexer using LEANN with hash-based tracking.
 
-    Supports PDF, PPTX, DOCX, and JSON (email) files.
+    Supports PDF, DOCX, PPTX, XLSX, HTML, and JSON (email) files.
     """
 
-    SUPPORTED_EXTENSIONS = {".pdf", ".pptx", ".docx", ".json"}
+    SUPPORTED_EXTENSIONS = SUPPORTED_EXTENSIONS
 
     def __init__(
         self,
@@ -48,26 +48,11 @@ class Indexer:
         self.tracker = tracker
         self._builder = None
 
-    def _get_extractor(self, file_path: Path):
-        """Get the appropriate text extractor for a file type."""
-        from leannvault.core.extractors import (
-            extract_text_from_docx,
-            extract_text_from_pdf,
-            extract_text_from_pptx,
-            extract_text_from_json_email,
-        )
-
-        extractors = {
-            ".pdf": extract_text_from_pdf,
-            ".pptx": extract_text_from_pptx,
-            ".docx": extract_text_from_docx,
-            ".json": extract_text_from_json_email,
-        }
-        return extractors.get(file_path.suffix.lower())
-
-    def extract_text(self, file_path: Path) -> Optional[str]:
+    def extract_document_text(self, file_path: Path) -> Optional[str]:
         """
         Extract text from a supported file.
+
+        Uses markitdown as primary extraction engine with fallbacks.
 
         Args:
             file_path: Path to the file.
@@ -75,10 +60,7 @@ class Indexer:
         Returns:
             Extracted text or None if extraction failed.
         """
-        extractor = self._get_extractor(file_path)
-        if extractor is None:
-            return None
-        return extractor(file_path)
+        return extract_text(file_path)
 
     def index_file(self, file_path: Path, min_text_length: int = 50) -> Optional[IndexedDocument]:
         """
@@ -103,7 +85,7 @@ class Indexer:
         if existing and existing.is_valid:
             return None
 
-        text = self.extract_text(file_path)
+        text = self.extract_document_text(file_path)
         if not text or len(text.strip()) < min_text_length:
             return None
 
