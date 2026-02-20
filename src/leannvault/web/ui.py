@@ -31,29 +31,33 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
 
     def do_search(query: str, top_k: int) -> str:
         """Perform search and format results."""
-        if not query.strip():
-            return "Please enter a search query."
+        try:
+            if not query.strip():
+                return "Please enter a search query."
 
-        if not searcher.is_ready():
-            return "Index not ready. Run 'leannvault index' first."
+            if not searcher.is_ready():
+                return f"Index not ready at {searcher.index_path}. Run 'leannvault index' first."
 
-        results, latency = searcher.search_with_latency(query, top_k)
+            results, latency = searcher.search_with_latency(query, top_k)
 
-        if not results:
-            return "No results found."
+            if not results:
+                return "No results found."
 
-        output = f"**Search completed in {latency:.2f} ms**\n\n---\n\n"
+            output = f"**Search completed in {latency:.2f} ms**\n\n---\n\n"
 
-        for i, result in enumerate(results, 1):
-            output += f"### {i}. {Path(result.source).name if result.source else 'Unknown'}\n"
-            output += f"- **Type:** {result.file_type}\n"
-            output += f"- **Score:** {result.score:.4f}\n"
-            if result.current_path:
-                output += f"- **Path:** `{result.current_path}`\n"
-            output += f"\n> {result.text[:300]}{'...' if len(result.text) > 300 else ''}\n\n"
-            output += "---\n\n"
+            for i, result in enumerate(results, 1):
+                output += f"### {i}. {Path(result.source).name if result.source else 'Unknown'}\n"
+                output += f"- **Type:** {result.file_type}\n"
+                output += f"- **Score:** {result.score:.4f}\n"
+                if result.current_path:
+                    output += f"- **Path:** `{result.current_path}`\n"
+                output += f"\n> {result.text[:300]}{'...' if len(result.text) > 300 else ''}\n\n"
+                output += "---\n\n"
 
-        return output
+            return output
+        except Exception as e:
+            import traceback
+            return f"**Error during search:**\n\n```\n{str(e)}\n{traceback.format_exc()}\n```"
 
     def get_status() -> str:
         """Get index status."""
