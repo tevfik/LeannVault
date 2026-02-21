@@ -58,8 +58,8 @@ leannvault serve --port 8000
 ## Project Structure
 
 ```
-~/.leannvault/
-├── src/~/.leannvault/
+leannvault/
+├── src/leannvault/
 │   ├── __init__.py
 │   ├── core/
 │   │   ├── __init__.py
@@ -107,16 +107,11 @@ Additional formats may be supported by markitdown. The system gracefully falls b
 
 ## Configuration
 
-Configuration is stored in `~/.~/.leannvault/config.json`:
+Configuration defaults to the following paths:
 
-```json
-{
-  "index_path": "~/.~/.leannvault/index.leann",
-  "db_path": "~/.~/.leannvault/vault.db",
-  "embedding_model": "facebook/contriever",
-  "default_top_k": 5
-}
-```
+- **Index**: `~/.leannvault/index.leann`
+- **Database**: `~/.leannvault/vault.db`
+- **Model**: `facebook/contriever` (default)
 
 ## Development
 
