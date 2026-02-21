@@ -1,11 +1,12 @@
 """
-Professional Gradio UI for LeannVault.
+Professional Gradio UI for LeannVault v0.3.0.
 
-Provides a user-friendly, colorful web interface for searching.
+Provides a user-friendly, multi-tab interface for searching and managing the vault.
 """
 
+import pandas as pd
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import gradio as gr
 
@@ -16,13 +17,13 @@ from leannvault.core.searcher import Searcher
 
 def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
     """
-    Create the Gradio UI with a professional look.
+    Create the multi-tab Gradio UI.
     """
     tracker = FileTracker(db_path)
     indexer = Indexer(index_path, tracker)
     searcher = Searcher(index_path, tracker)
 
-    # Custom CSS for better result cards
+    # Custom CSS for better result cards and layout
     custom_css = """
     .result-card {
         border-left: 5px solid #2563eb;
@@ -62,6 +63,11 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
         border: 1px solid #e2e8f0;
         font-style: italic;
     }
+    .status-panel {
+        padding: 10px;
+        background-color: #f1f5f9;
+        border-radius: 8px;
+    }
     """
 
     def do_search(query: str, top_k: int) -> str:
@@ -73,7 +79,7 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
             if not searcher.is_ready():
                 return f"### ❌ Index not ready. Run `leannvault index` first."
 
-            results, latency = searcher.search_with_latency(query, top_k)
+            results, latency = searcher.search_with_latency(query, int(top_k))
 
             if not results:
                 return "### 🔍 No results found."
@@ -103,7 +109,35 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
         except Exception as e:
             return f"### ❌ Error during search\n\n```python\n{str(e)}\n```"
 
-    def get_status() -> str:
+    def get_vault_data():
+        """Fetch all indexed files from SQLite for the management table."""
+        records = tracker.get_all_files()
+        data = []
+        for r in records:
+            data.append({
+                "Filename": Path(r.current_path).name,
+                "Hash": r.content_hash[:12] + "...",
+                "Extension": Path(r.current_path).suffix,
+                "Status": "✅ Valid" if r.is_valid else "⚠️ Moved",
+                "Current Path": r.current_path,
+                "Full Hash": r.content_hash
+            })
+        return pd.DataFrame(data)
+
+    def delete_files(selected_data: pd.DataFrame):
+        """Delete selected files from the vault."""
+        if selected_data is None or len(selected_data) == 0:
+            return "No files selected.", get_vault_data()
+        
+        deleted_count = 0
+        for _, row in selected_data.iterrows():
+            full_hash = row["Full Hash"]
+            if tracker.delete(full_hash):
+                deleted_count += 1
+        
+        return f"Successfully removed {deleted_count} files from vault.", get_vault_data()
+
+    def get_system_status() -> str:
         """Get index status with visual styling."""
         try:
             stats = indexer.get_index_stats()
@@ -136,49 +170,62 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
         theme=theme,
         css=custom_css
     ) as demo:
-        with gr.Row():
-            gr.Markdown(
-                """
-                # 🌌 LeannVault
-                ### The Ultimate Knowledge Layer for Your Machine
-                *Hash-based vector search powered by LEANN and markitdown.*
-                """
-            )
+        gr.Markdown(
+            """
+            # 🌌 LeannVault
+            ### The Ultimate Knowledge Layer for Your Machine
+            """
+        )
 
-        with gr.Row():
-            with gr.Column(scale=3):
+        with gr.Tabs():
+            # Tab 1: Search
+            with gr.TabItem("🔍 Semantic Search"):
+                with gr.Row():
+                    with gr.Column(scale=3):
+                        with gr.Column(variant="panel"):
+                            query_input = gr.Textbox(
+                                label="🚀 Search Query",
+                                placeholder="What are you looking for today?",
+                                lines=2
+                            )
+                            with gr.Row():
+                                top_k_slider = gr.Slider(
+                                    minimum=1, maximum=20, value=5, step=1,
+                                    label="Top results"
+                                )
+                                search_button = gr.Button("🔍 Search Files", variant="primary")
+                        
+                        results_output = gr.HTML(label="Search Results")
+
+                    with gr.Column(scale=1):
+                        with gr.Column(variant="panel"):
+                            status_output = gr.Markdown(label="Status")
+                            status_button = gr.Button("🔄 Refresh Status")
+                        
+                        gr.Markdown(
+                            """
+                            ### 💡 Search Tips
+                            - Use natural language
+                            - Search for concepts, not just words
+                            - Example: *"Transformer architecture overview"*
+                            """
+                        )
+
+            # Tab 2: Vault Management
+            with gr.TabItem("⚙️ Vault Management"):
+                gr.Markdown("### 📂 Indexed Files")
                 with gr.Column(variant="panel"):
-                    query_input = gr.Textbox(
-                        label="🚀 Semantic Search",
-                        placeholder="What are you looking for today?",
-                        lines=2,
-                        elem_id="search_box"
+                    vault_table = gr.DataFrame(
+                        value=get_vault_data(),
+                        headers=["Filename", "Extension", "Status", "Current Path", "Hash"],
+                        datatype=["str", "str", "str", "str", "str"],
+                        interactive=False,
                     )
                     with gr.Row():
-                        top_k_slider = gr.Slider(
-                            minimum=1,
-                            maximum=20,
-                            value=5,
-                            step=1,
-                            label="Top results",
-                        )
-                        search_button = gr.Button("🔍 Search Files", variant="primary")
+                        refresh_vault_btn = gr.Button("🔄 Refresh List")
+                        delete_msg = gr.Markdown("")
                 
-                results_output = gr.HTML(label="Search Results")
-
-            with gr.Column(scale=1):
-                with gr.Column(variant="panel"):
-                    status_output = gr.Markdown(label="Status")
-                    status_button = gr.Button("🔄 Refresh Status")
-                
-                gr.Markdown(
-                    """
-                    ### 💡 Search Tips
-                    - Use natural language
-                    - Search for concepts, not just words
-                    - Example: *"Autonomous cooking journey senaryoları"*
-                    """
-                )
+                gr.Markdown("> **Note:** File management is read-only in this version. Use CLI for advanced operations.")
 
         # Event Handlers
         search_button.click(
@@ -194,13 +241,19 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
         )
 
         status_button.click(
-            fn=get_status,
+            fn=get_system_status,
             inputs=[],
             outputs=status_output,
         )
 
+        refresh_vault_btn.click(
+            fn=get_vault_data,
+            inputs=[],
+            outputs=vault_table,
+        )
+
         demo.load(
-            fn=get_status,
+            fn=get_system_status,
             inputs=[],
             outputs=status_output,
         )

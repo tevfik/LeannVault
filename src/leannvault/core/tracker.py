@@ -249,6 +249,10 @@ class FileTracker:
             conn.commit()
             return cursor.rowcount > 0
 
+    def get_all_files(self, valid_only: bool = False) -> list[FileRecord]:
+        """Alias for list_all(valid_only=False) to support UI."""
+        return self.list_all(valid_only=valid_only)
+
     def list_all(self, valid_only: bool = True) -> list[FileRecord]:
         """
         List all tracked files.
