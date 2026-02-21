@@ -1,5 +1,5 @@
 """
-Professional Gradio UI for LeannVault v0.3.0.
+Professional Gradio UI for LeannVault v0.3.1.
 
 Provides a user-friendly, multi-tab interface for searching and managing the vault.
 """
@@ -7,7 +7,6 @@ Provides a user-friendly, multi-tab interface for searching and managing the vau
 import pandas as pd
 from pathlib import Path
 from typing import Optional, List
-
 import gradio as gr
 
 from leannvault.core.tracker import FileTracker
@@ -63,10 +62,9 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
         border: 1px solid #e2e8f0;
         font-style: italic;
     }
-    .status-panel {
-        padding: 10px;
-        background-color: #f1f5f9;
-        border-radius: 8px;
+    .vault-table-container {
+        max-height: 400px;
+        overflow-y: auto;
     }
     """
 
@@ -110,32 +108,40 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
             return f"### ❌ Error during search\n\n```python\n{str(e)}\n```"
 
     def get_vault_data():
-        """Fetch all indexed files from SQLite for the management table."""
+        """Fetch indexed files for the management table."""
         records = tracker.get_all_files()
         data = []
         for r in records:
             data.append({
                 "Filename": Path(r.current_path).name,
-                "Hash": r.content_hash[:12] + "...",
-                "Extension": Path(r.current_path).suffix,
                 "Status": "✅ Valid" if r.is_valid else "⚠️ Moved",
+                "Size (KB)": f"{r.size_bytes / 1024:.1f}",
                 "Current Path": r.current_path,
-                "Full Hash": r.content_hash
+                "Hash": r.content_hash
             })
+        if not data:
+            return pd.DataFrame(columns=["Filename", "Status", "Size (KB)", "Current Path", "Hash"])
         return pd.DataFrame(data)
 
-    def delete_files(selected_data: pd.DataFrame):
-        """Delete selected files from the vault."""
-        if selected_data is None or len(selected_data) == 0:
-            return "No files selected.", get_vault_data()
+    def delete_file_by_hash(file_hash: str):
+        """Delete a single file from the vault."""
+        if not file_hash:
+            return "### ⚠️ Please provide a hash.", get_vault_data()
         
-        deleted_count = 0
-        for _, row in selected_data.iterrows():
-            full_hash = row["Full Hash"]
-            if tracker.delete(full_hash):
-                deleted_count += 1
-        
-        return f"Successfully removed {deleted_count} files from vault.", get_vault_data()
+        if tracker.delete(file_hash):
+            return f"### ✅ Deleted record: `{file_hash[:12]}...`", get_vault_data()
+        return f"### ❌ Hash not found: `{file_hash}`", get_vault_data()
+
+    def run_sync(directory: str):
+        """Trigger a sync operation."""
+        if not directory:
+            return "### ⚠️ Please provide a directory to sync."
+        try:
+            # We use the tracker's verify_paths logic
+            valid, invalid = tracker.verify_paths()
+            return f"### ✅ Sync complete! Valid: {valid}, Invalidated: {invalid}", get_vault_data()
+        except Exception as e:
+            return f"### ❌ Sync failed: {str(e)}", get_vault_data()
 
     def get_system_status() -> str:
         """Get index status with visual styling."""
@@ -154,7 +160,7 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
         except Exception:
             return "### 📊 System Status: 🟠 Unknown"
 
-    # Define the professional theme
+    # Define theme
     theme = gr.themes.Soft(
         primary_hue="blue",
         secondary_hue="slate",
@@ -162,109 +168,58 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
     ).set(
         body_background_fill="*neutral_50",
         block_title_text_weight="700",
-        block_label_text_size="*text_sm",
     )
 
-    with gr.Blocks(
-        title="LeannVault 🌌",
-        theme=theme,
-        css=custom_css
-    ) as demo:
-        gr.Markdown(
-            """
-            # 🌌 LeannVault
-            ### The Ultimate Knowledge Layer for Your Machine
-            """
-        )
+    with gr.Blocks(title="LeannVault 🌌", theme=theme, css=custom_css) as demo:
+        gr.Markdown("# 🌌 LeannVault\n*Intelligent local knowledge management*")
 
         with gr.Tabs():
-            # Tab 1: Search
-            with gr.TabItem("🔍 Semantic Search"):
+            # TAB 1: SEARCH
+            with gr.TabItem("🔍 Search"):
                 with gr.Row():
                     with gr.Column(scale=3):
-                        with gr.Column(variant="panel"):
-                            query_input = gr.Textbox(
-                                label="🚀 Search Query",
-                                placeholder="What are you looking for today?",
-                                lines=2
-                            )
-                            with gr.Row():
-                                top_k_slider = gr.Slider(
-                                    minimum=1, maximum=20, value=5, step=1,
-                                    label="Top results"
-                                )
-                                search_button = gr.Button("🔍 Search Files", variant="primary")
-                        
-                        results_output = gr.HTML(label="Search Results")
-
+                        query_input = gr.Textbox(label="Query", placeholder="What are you looking for?", lines=1)
+                        search_btn = gr.Button("Search", variant="primary")
+                        results_output = gr.HTML(label="Results")
                     with gr.Column(scale=1):
-                        with gr.Column(variant="panel"):
-                            status_output = gr.Markdown(label="Status")
-                            status_button = gr.Button("🔄 Refresh Status")
-                        
-                        gr.Markdown(
-                            """
-                            ### 💡 Search Tips
-                            - Use natural language
-                            - Search for concepts, not just words
-                            - Example: *"Transformer architecture overview"*
-                            """
+                        status_output = gr.Markdown(label="Status")
+                        gr.Markdown("### 💡 Tips\nSearch for concepts, e.g., 'safety requirements' or 'project roadmap'.")
+
+            # TAB 2: MANAGEMENT
+            with gr.TabItem("⚙️ Management"):
+                with gr.Row():
+                    with gr.Column(scale=2):
+                        gr.Markdown("### 📂 Vault Files")
+                        vault_table = gr.DataFrame(
+                            value=get_vault_data(),
+                            headers=["Filename", "Status", "Size (KB)", "Current Path", "Hash"],
+                            interactive=False,
+                            wrap=True
                         )
+                        refresh_btn = gr.Button("🔄 Refresh Table")
+                    
+                    with gr.Column(scale=1):
+                        gr.Markdown("### 🛠️ Actions")
+                        with gr.Column(variant="panel"):
+                            hash_input = gr.Textbox(label="Delete by Hash", placeholder="Paste hash from table...")
+                            delete_btn = gr.Button("🗑️ Delete from Vault", variant="stop")
+                        
+                        with gr.Column(variant="panel"):
+                            sync_dir = gr.Textbox(label="Sync Directory", value=str(Path.home()))
+                            sync_btn = gr.Button("🔄 Sync & Verify Paths")
+                        
+                        action_msg = gr.Markdown("")
 
-            # Tab 2: Vault Management
-            with gr.TabItem("⚙️ Vault Management"):
-                gr.Markdown("### 📂 Indexed Files")
-                with gr.Column(variant="panel"):
-                    vault_table = gr.DataFrame(
-                        value=get_vault_data(),
-                        headers=["Filename", "Extension", "Status", "Current Path", "Hash"],
-                        datatype=["str", "str", "str", "str", "str"],
-                        interactive=False,
-                    )
-                    with gr.Row():
-                        refresh_vault_btn = gr.Button("🔄 Refresh List")
-                        delete_msg = gr.Markdown("")
-                
-                gr.Markdown("> **Note:** File management is read-only in this version. Use CLI for advanced operations.")
-
-        # Event Handlers
-        search_button.click(
-            fn=do_search,
-            inputs=[query_input, top_k_slider],
-            outputs=results_output,
-        )
-
-        query_input.submit(
-            fn=do_search,
-            inputs=[query_input, top_k_slider],
-            outputs=results_output,
-        )
-
-        status_button.click(
-            fn=get_system_status,
-            inputs=[],
-            outputs=status_output,
-        )
-
-        refresh_vault_btn.click(
-            fn=get_vault_data,
-            inputs=[],
-            outputs=vault_table,
-        )
-
-        demo.load(
-            fn=get_system_status,
-            inputs=[],
-            outputs=status_output,
-        )
+        # Bindings
+        search_btn.click(do_search, inputs=[query_input, gr.State(5)], outputs=results_output)
+        refresh_btn.click(get_vault_data, outputs=vault_table)
+        delete_btn.click(delete_file_by_hash, inputs=[hash_input], outputs=[action_msg, vault_table])
+        sync_btn.click(run_sync, inputs=[sync_dir], outputs=[action_msg, vault_table])
+        demo.load(get_system_status, outputs=status_output)
 
     return demo
 
 
 def mount_ui(app, index_path: Path, db_path: Path, path: str = "/ui"):
-    """
-    Mount Gradio UI to a FastAPI app.
-    """
     demo = create_ui(index_path, db_path)
-    app = gr.mount_gradio_app(app, demo, path=path)
-    return app
+    return gr.mount_gradio_app(app, demo, path=path)
