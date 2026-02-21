@@ -249,26 +249,63 @@ class FileTracker:
             conn.commit()
             return cursor.rowcount > 0
 
-    def get_all_files(self, valid_only: bool = False) -> list[FileRecord]:
-        """Alias for list_all(valid_only=False) to support UI."""
-        return self.list_all(valid_only=valid_only)
+    def get_all_files(self, valid_only: bool = False, limit: Optional[int] = None, offset: Optional[int] = None) -> list[FileRecord]:
+        """Alias for list_all with pagination to support UI."""
+        return self.list_all(valid_only=valid_only, limit=limit, offset=offset)
 
-    def list_all(self, valid_only: bool = True) -> list[FileRecord]:
+    def list_all(self, valid_only: bool = True, limit: Optional[int] = None, offset: Optional[int] = None) -> list[FileRecord]:
         """
         List all tracked files.
 
         Args:
             valid_only: If True, only return valid files.
+            limit: Maximum number of records to return.
+            offset: Number of records to skip.
 
         Returns:
             List of FileRecord objects.
         """
+        query = "SELECT * FROM files"
+        params = []
+        if valid_only:
+            query += " WHERE is_valid = 1"
+        
+        query += " ORDER BY indexed_at DESC"
+        
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
+            if offset is not None:
+                query += " OFFSET ?"
+                params.append(offset)
+
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            if valid_only:
-                cursor = conn.execute("SELECT * FROM files WHERE is_valid = 1")
-            else:
-                cursor = conn.execute("SELECT * FROM files")
+            cursor = conn.execute(query, params)
+            records = []
+            for row in cursor.fetchall():
+                records.append(
+                    FileRecord(
+                        content_hash=row["content_hash"],
+                        current_path=row["current_path"],
+                        original_path=row["original_path"],
+                        file_type=row["file_type"],
+                        size_bytes=row["size_bytes"],
+                        indexed_at=row["indexed_at"],
+                        last_seen_at=row["last_seen_at"],
+                        is_valid=bool(row["is_valid"]),
+                    )
+                )
+        return records
+
+    def search_files(self, name_query: str, limit: int = 100) -> list[FileRecord]:
+        """Search files by name in the database."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM files WHERE current_path LIKE ? ORDER BY indexed_at DESC LIMIT ?",
+                (f"%{name_query}%", limit),
+            )
             records = []
             for row in cursor.fetchall():
                 records.append(

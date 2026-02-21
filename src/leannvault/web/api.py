@@ -91,7 +91,7 @@ def create_app(index_path: Path, db_path: Path) -> FastAPI:
     app = FastAPI(
         title="LeannVault",
         description="Hash-based vector search with LEANN",
-        version="0.1.0",
+        version="0.3.3",
     )
 
     app.add_middleware(
@@ -208,11 +208,5 @@ def create_app(index_path: Path, db_path: Path) -> FastAPI:
             }
             for r in records
         ]
-
-    from leannvault.web.ui import create_ui
-    import gradio as gr
-
-    ui_blocks, theme, custom_css = create_ui(index_path, db_path)
-    app = gr.mount_gradio_app(app, ui_blocks, path="/ui", theme=theme, css=custom_css)
 
     return app
