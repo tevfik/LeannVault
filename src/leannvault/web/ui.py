@@ -56,6 +56,7 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
     }
     .preview-box {
         background-color: white;
+        color: #1e293b;
         padding: 10px;
         border-radius: 4px;
         border: 1px solid #e2e8f0;
@@ -110,12 +111,11 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
             return f"""
 ### 📊 System Status: {status}
 
-| Component | Value |
-|:--- |:--- |
-| **Index Size** | {stats["total_size_mb"]:.2f} MB |
-| **Documents** | {stats["total_files"]} |
-| **Tracked Files** | {stats["tracked_files"]} |
-| **Index Path** | `{stats["index_path"]}` |
+- **Index Size:** {stats["total_size_mb"]:.2f} MB
+- **Documents:** {stats["total_files"]}
+- **Tracked Files:** {stats["tracked_files"]}
+- **Index Path:** 
+  `{stats["index_path"]}`
 """
         except Exception:
             return "### 📊 System Status: 🟠 Unknown"
@@ -146,7 +146,7 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
             )
 
         with gr.Row():
-            with gr.Column(scale=4):
+            with gr.Column(scale=3):
                 with gr.Column(variant="panel"):
                     query_input = gr.Textbox(
                         label="🚀 Semantic Search",
