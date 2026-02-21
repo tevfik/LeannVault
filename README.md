@@ -1,5 +1,8 @@
 # LeannVault
 
+[![CI](https://github.com/tevfik/LeannVault/actions/workflows/ci.yml/badge.svg)](https://github.com/tevfik/LeannVault/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A lightweight, hash-based vector search application that keeps your document index valid even when files are moved. Built on LEANN for 97%+ storage efficiency.
 
 ## Features
@@ -117,12 +120,22 @@ Configuration is stored in `~/.leannvault/config.json`:
 # Install dev dependencies
 pip install -e ".[dev]"
 
+# Run linting
+flake8 src
+
+# Build package
+python -m build
+
 # Run tests
 pytest tests/
-
-# Format code
-black src/
 ```
+
+### CI/CD Pipeline
+
+LeannVault uses GitHub Actions for:
+- **Linting**: Automated code quality checks with `flake8`.
+- **Building**: Automated creation of source distributions and wheels.
+- **Releases**: Automatic deployment of build artifacts to GitHub Releases when a version tag (e.g., `v1.0.0`) is pushed.
 
 ## License
 
