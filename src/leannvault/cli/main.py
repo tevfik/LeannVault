@@ -45,7 +45,7 @@ def get_searcher(index_path: Path, tracker):
 
 
 @click.group()
-@click.version_option(version="0.2.0", prog_name="leannvault")
+@click.version_option(version="0.3.2", prog_name="leannvault")
 @click.option(
     "--index-path",
     type=click.Path(),
@@ -258,19 +258,19 @@ def serve(ctx, port, host, share):
     import gradio as gr
 
     # Create UI and launch it with share option
-    demo = create_ui(ctx.obj["index_path"], ctx.obj["db_path"])
+    ui_blocks, theme, custom_css = create_ui(ctx.obj["index_path"], ctx.obj["db_path"])
     
     if share:
         console.print("[bold yellow]Gradio sharing enabled...[/]")
         # Launch independently for sharing
-        demo.launch(server_name=host, server_port=port, share=True)
+        ui_blocks.launch(server_name=host, server_port=port, share=True, theme=theme, css=custom_css)
     else:
         # Standard FastAPI mount
         app = create_app(
             index_path=ctx.obj["index_path"],
             db_path=ctx.obj["db_path"],
         )
-        app = gr.mount_gradio_app(app, demo, path="/")
+        app = gr.mount_gradio_app(app, ui_blocks, path="/", theme=theme, css=custom_css)
         console.print(f"[bold green]Starting server at http://{host}:{port}[/]")
         uvicorn.run(app, host=host, port=port)
 

@@ -1,12 +1,12 @@
 """
-Professional Gradio UI for LeannVault v0.3.1.
+Professional Gradio UI for LeannVault v0.3.2.
 
 Provides a user-friendly, multi-tab interface for searching and managing the vault.
 """
 
 import pandas as pd
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import gradio as gr
 
 from leannvault.core.tracker import FileTracker
@@ -14,9 +14,10 @@ from leannvault.core.indexer import Indexer
 from leannvault.core.searcher import Searcher
 
 
-def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
+def create_ui(index_path: Path, db_path: Path) -> Tuple[gr.Blocks, gr.Theme, str]:
     """
     Create the multi-tab Gradio UI.
+    Returns: (demo, theme, css)
     """
     tracker = FileTracker(db_path)
     indexer = Indexer(index_path, tracker)
@@ -170,7 +171,7 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
         block_title_text_weight="700",
     )
 
-    with gr.Blocks(title="LeannVault 🌌", theme=theme, css=custom_css) as demo:
+    with gr.Blocks(title="LeannVault 🌌") as demo:
         gr.Markdown("# 🌌 LeannVault\n*Intelligent local knowledge management*")
 
         with gr.Tabs():
@@ -194,7 +195,8 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
                             value=get_vault_data(),
                             headers=["Filename", "Status", "Size (KB)", "Current Path", "Hash"],
                             interactive=False,
-                            wrap=True
+                            wrap=True,
+                            max_height=500
                         )
                         refresh_btn = gr.Button("🔄 Refresh Table")
                     
@@ -217,9 +219,9 @@ def create_ui(index_path: Path, db_path: Path) -> gr.Blocks:
         sync_btn.click(run_sync, inputs=[sync_dir], outputs=[action_msg, vault_table])
         demo.load(get_system_status, outputs=status_output)
 
-    return demo
+    return demo, theme, custom_css
 
 
 def mount_ui(app, index_path: Path, db_path: Path, path: str = "/ui"):
-    demo = create_ui(index_path, db_path)
-    return gr.mount_gradio_app(app, demo, path=path)
+    demo, theme, custom_css = create_ui(index_path, db_path)
+    return gr.mount_gradio_app(app, demo, path=path, theme=theme, css=custom_css)

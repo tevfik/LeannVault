@@ -9,6 +9,7 @@ from typing import Optional, Union
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from leannvault.core.tracker import FileTracker
@@ -104,23 +105,6 @@ def create_app(index_path: Path, db_path: Path) -> FastAPI:
     tracker = FileTracker(db_path)
     indexer = Indexer(index_path, tracker)
     searcher = Searcher(index_path, tracker)
-
-    @app.get("/", response_class=str)
-    async def root():
-        """Root endpoint - redirects to Gradio UI."""
-        return """
-        <html>
-            <head>
-                <title>LeannVault</title>
-                <meta http-equiv="refresh" content="0; url=/ui" />
-            </head>
-            <body>
-                <h1>LeannVault</h1>
-                <p>Redirecting to <a href="/ui">Web UI</a>...</p>
-                <p>API docs: <a href="/docs">/docs</a></p>
-            </body>
-        </html>
-        """
 
     @app.get("/status", response_model=StatusResponse)
     async def get_status():
@@ -228,7 +212,7 @@ def create_app(index_path: Path, db_path: Path) -> FastAPI:
     from leannvault.web.ui import create_ui
     import gradio as gr
 
-    ui = create_ui(index_path, db_path)
-    app = gr.mount_gradio_app(app, ui, path="/ui")
+    ui_blocks, theme, custom_css = create_ui(index_path, db_path)
+    app = gr.mount_gradio_app(app, ui_blocks, path="/ui", theme=theme, css=custom_css)
 
     return app

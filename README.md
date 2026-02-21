@@ -15,6 +15,10 @@ A lightweight, hash-based vector search application that keeps your document ind
 - **Web UI**: Lightweight FastAPI + Gradio interface for interactive searching.
 - **99% Storage Savings**: LEANN's compression keeps indexes tiny.
 
+## UI Showcase
+
+![LeannVault UI](docs/images/leannvault_ui_showcase.jpg)
+
 ## Installation
 
 ```bash
@@ -54,8 +58,8 @@ leannvault serve --port 8000
 ## Project Structure
 
 ```
-leannvault/
-├── src/leannvault/
+~/.leannvault/
+├── src/~/.leannvault/
 │   ├── __init__.py
 │   ├── core/
 │   │   ├── __init__.py
@@ -103,12 +107,12 @@ Additional formats may be supported by markitdown. The system gracefully falls b
 
 ## Configuration
 
-Configuration is stored in `~/.leannvault/config.json`:
+Configuration is stored in `~/.~/.leannvault/config.json`:
 
 ```json
 {
-  "index_path": "~/.leannvault/index.leann",
-  "db_path": "~/.leannvault/vault.db",
+  "index_path": "~/.~/.leannvault/index.leann",
+  "db_path": "~/.~/.leannvault/vault.db",
   "embedding_model": "facebook/contriever",
   "default_top_k": 5
 }
